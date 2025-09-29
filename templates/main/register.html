@@ -1,10 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "main/base.html" %}
+{% block title %}Регистрация — CookBook{% endblock %}
 
-</body>
-</html>
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h1 class="h4 mb-3">Регистрация</h1>
+          <form method="post" action="">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label for="id_username" class="form-label">Имя пользователя</label>
+              <input type="text" name="username" id="id_username" class="form-control" value="{{ form.username.value|default:'' }}" required>
+              {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="id_email" class="form-label">Email (опционально)</label>
+              <input type="email" name="email" id="id_email" class="form-control" value="{{ form.email.value|default:'' }}">
+              {% if form.email and form.email.errors %}<div class="text-danger small">{{ form.email.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="id_password1" class="form-label">Пароль</label>
+              <input type="password" name="password1" id="id_password1" class="form-control" required>
+              {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="id_password2" class="form-label">Повторите пароль</label>
+              <input type="password" name="password2" id="id_password2" class="form-control" required>
+              {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors }}</div>{% endif %}
+            </div>
+
+            <div class="d-grid">
+              <button class="btn btn-success" type="submit">Создать аккаунт</button>
+            </div>
+          </form>
+
+          <hr class="my-4">
+          <p class="mb-0 text-muted">Уже есть аккаунт? <a href="/users/login/">Войти</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
