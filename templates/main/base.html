@@ -1,21 +1,90 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
+{% load static %}
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}CookBook{% endblock %}</title>
-</head>
-<body>
-    <header>
-        <h1>CookBook</h1>
-        <nav>
-            <a href="/">Home</a> |
-            <a href="/users/">Users</a> |
-            <a href="/recipes/">Recipes</a>
-        </nav>
-    </header>
 
-    <main>
-        {% block content %}{% endblock %}
+    <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/app.css' %}" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="{% url 'home' %}">CookBook</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Переключить навигацию">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNavbar">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="/recipes/">Рецепты</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/collections/">Подборки</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/search/">Поиск</a>
+            </li>
+          </ul>
+
+          <form class="d-flex me-3" role="search" action="/search/" method="get">
+            <input class="form-control me-2" type="search" placeholder="Ингредиенты, категории..." aria-label="Search" name="q" value="{{ request.GET.q|default:'' }}">
+            <button class="btn btn-outline-light" type="submit">Найти</button>
+          </form>
+
+          <ul class="navbar-nav mb-2 mb-lg-0">
+            {% if request.user.is_authenticated %}
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  {{ request.user.username }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="/users/profile/">Профиль</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="post" action="/users/logout/">
+                      {% csrf_token %}
+                      <button class="dropdown-item" type="submit">Выйти</button>
+                    </form>
+                  </li>
+                </ul>
+              </li>
+            {% else %}
+              <li class="nav-item"><a class="nav-link" href="/users/login/">Войти</a></li>
+              <li class="nav-item"><a class="nav-link" href="/users/register/">Регистрация</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container my-4">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
     </main>
-</body>
+
+    <footer class="bg-light border-top py-3 mt-auto">
+      <div class="container text-muted small">
+        © {{ now|date:"Y" }} CookBook. Сообщество кулинаров.
+      </div>
+    </footer>
+
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+  </body>
 </html>
+
