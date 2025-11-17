@@ -1,6 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
-
+import decimal
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import PROTECT, Avg
 from django.utils.text import slugify
@@ -70,16 +71,17 @@ class Recipe(models.Model):
         default="easy",
     )
 
-    # Рейтинг теперь считается автоматически из таблицы Rating
+
+    # Рейтинг считается автоматически по оценкам
     rating = models.DecimalField(
-        "Рейтинг", max_digits=3, decimal_places=2, default=0, editable=False
+        "Рейтинг", max_digits=4, decimal_places=2, default=0, editable=False
     )
 
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Изменено", auto_now=True)
 
     ingredients = models.ManyToManyField(
-        Ingredient,
+        "Ingredient",
         through="RecipeIngredient",
         related_name="recipes",
         verbose_name="Ингредиенты",
@@ -93,28 +95,66 @@ class Recipe(models.Model):
     def __str__(self):
         return self.title
 
+    def image_tag(self):
+        """Миниатюра для админки."""
+        # Поле image удалено из модели Recipe
+        return "—"
+    image_tag.short_description = "Фото"
+
     def update_rating(self):
-        """
-        Пересчитывает средний рейтинг из связанных оценок.
-        Округляем до сотых и пишем в DecimalField (не редактируется вручную).
-        """
+        """Пересчитать средний рейтинг из связанных оценок."""
         agg = self.ratings.aggregate(avg=Avg("value"))
         avg_value = agg["avg"]
         if avg_value is None:
             new_value = Decimal("0.00")
         else:
-            # Приводим через str, чтобы избежать артефактов float
-            new_value = Decimal(str(avg_value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            try:
+                # Безопасное преобразование в Decimal
+                avg_str = str(avg_value)
+                if avg_str.lower() in ['nan', 'inf', '-inf']:
+                    new_value = Decimal("0.00")
+                else:
+                    new_value = Decimal(avg_str).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            except (ValueError, TypeError, decimal.InvalidOperation):
+                new_value = Decimal("0.00")
+        
         if self.rating != new_value:
             self.rating = new_value
             self.save(update_fields=["rating"])
+
+    @property
+    def main_image(self):
+        """Вернуть главное изображение (если есть)."""
+        main = self.images.filter(is_main=True).first()
+        if main:
+            return main.image.url
+        return None
+
+
+class RecipeImage(models.Model):
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, related_name="images", verbose_name="Рецепт"
+    )
+    image = models.ImageField("Изображение", upload_to="recipe_images/")
+    is_main = models.BooleanField("Основное", default=False)
+    position = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Изображение рецепта"
+        verbose_name_plural = "Изображения рецептов"
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        try:
+            return f"{self.recipe.title} → {self.image.name}"
+        except:
+            return f"Изображение → {self.image.name}"
 
 
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(
         Recipe, on_delete=models.CASCADE, related_name="recipe_ingredients"
     )
-    # ВАЖНО: PROTECT — запретит удалить ингредиент, если он используется в рецептах
     ingredient = models.ForeignKey(
         Ingredient, on_delete=PROTECT, related_name="ingredient_recipes"
     )
@@ -149,7 +189,10 @@ class Comment(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Комментарий от {self.user} к «{self.recipe}»"
+        try:
+            return f"Комментарий от {self.user} к «{self.recipe}»"
+        except:
+            return f"Комментарий от {self.user}"
 
 
 class Rating(models.Model):
@@ -162,7 +205,7 @@ class Rating(models.Model):
         related_name="ratings",
         verbose_name="Пользователь",
     )
-    value = models.PositiveSmallIntegerField("Оценка")  # 1..5 (валидаторы можно добавить позже)
+    value = models.PositiveSmallIntegerField("Оценка", validators=[MinValueValidator(1), MaxValueValidator(5)])
     created_at = models.DateTimeField("Дата", auto_now_add=True)
 
     class Meta:
@@ -174,7 +217,6 @@ class Rating(models.Model):
     def __str__(self):
         return f"{self.user} → {self.recipe}: {self.value}"
 
-    # Автопересчёт рейтинга рецепта при добавлении/изменении/удалении оценки:
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.recipe.update_rating()
@@ -182,4 +224,6 @@ class Rating(models.Model):
     def delete(self, *args, **kwargs):
         recipe = self.recipe
         super().delete(*args, **kwargs)
-        recipe.update_rating()
+        # Проверяем, что рецепт еще существует перед обновлением рейтинга
+        if Recipe.objects.filter(pk=recipe.pk).exists():
+            recipe.update_rating()
