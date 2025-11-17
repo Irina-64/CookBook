@@ -1,15 +1,28 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
-app_name = 'users'
+app_name = "users"
 
 urlpatterns = [
-    path('', views.index, name='users_index'),
-
-    # Временно закомментируем до создания представления
-
-  #  path('login/', views.login_view, name='login'),
-  #  path('logout/', views.logout_view, name='logout'),
-  #  path('register/', views.register_view, name='register'),
-  #  path('profile/', views.profile_view, name='profile'),
+    path(
+        "login/",
+        auth_views.LoginView.as_view(template_name="registration/login.html"),
+        name="login",
+    ),
+    path(
+        "logout/",
+        auth_views.LogoutView.as_view(template_name="registration/logout.html"),
+        name="logout",
+    ),
+    path(
+        "signup/",
+        views.signup,
+        name="signup",
+    ),
+    path(
+        "me/",
+        views.dashboard,
+        name="me",
+    ),
 ]
