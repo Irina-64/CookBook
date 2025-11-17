@@ -1,0 +1,269 @@
+{% extends "main/base.html" %}
+
+{% block page_title %}
+  <h1>{% if editing %}Редактировать рецепт{% else %}Добавить рецепт{% endif %}</h1>
+{% endblock %}
+
+{% block content %}
+
+  <div class="form-container">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <!-- Отображение ошибок формы -->
+    {% if form.errors %}
+      <div class="alert alert-danger">
+        <h5>Ошибки в форме:</h5>
+        {{ form.errors }}
+      </div>
+    {% endif %}
+    
+    {% if formset.non_form_errors %}
+      <script>
+        // Проверяем есть ли ошибки дубликатов
+        document.addEventListener('DOMContentLoaded', function() {
+          {% for error in formset.non_form_errors %}
+            const errorText = "{{ error|escapejs }}";
+            console.log('Error text:', errorText);
+            if (errorText.includes('добавлены несколько раз')) {
+              // Извлекаем названия дубликатов
+              const match = errorText.match(/Ингредиенты '([^']+)'/);
+              if (match) {
+                const duplicateNames = match[1];
+                showInfoModal(
+                  'Дубликат ингредиента',
+                  `⚠️ Внимание: Ингредиенты "${duplicateNames}" добавлены несколько раз. Удалите дубликаты или выберите другие ингредиенты.`
+                );
+              }
+            }
+          {% endfor %}
+        });
+      </script>
+    {% endif %}
+    
+    {% if formset.errors %}
+      <!-- Ошибки полей ингредиентов скрыты, показываем только модальное окно -->
+    {% endif %}
+    
+    {% if image_formset.non_form_errors %}
+      <!-- Ошибки изображений скрыты -->
+    {% endif %}
+    
+    {% if image_formset.errors %}
+      <!-- Ошибки полей изображений скрыты -->
+    {% endif %}
+      
+      <!-- Основные поля рецепта -->
+      <div class="form-group">
+        <label for="{{ form.title.id_for_label }}">Название рецепта *</label>
+        {{ form.title }}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.description.id_for_label }}">Описание</label>
+        {{ form.description }}
+      </div>
+      
+      <div class="form-group">
+        <label for="{{ form.instruction.id_for_label }}">Инструкция приготовления *</label>
+        {{ form.instruction }}
+      </div>
+      
+      <div style="display: flex; gap: 20px;">
+        <div class="form-group" style="flex: 1;">
+          <label for="{{ form.cook_time.id_for_label }}">Время приготовления (мин) *</label>
+          {{ form.cook_time }}
+        </div>
+        
+        <div class="form-group" style="flex: 1;">
+          <label for="{{ form.category.id_for_label }}">Категория</label>
+          {{ form.category }}
+        </div>
+        
+        <div class="form-group" style="flex: 1;">
+          <label for="{{ form.difficulty.id_for_label }}">Сложность</label>
+          {{ form.difficulty }}
+        </div>
+      </div>
+
+      <!-- Ингредиенты -->
+      <h3 style="margin-top: 30px; color: #343a40;">🥘 Ингредиенты</h3>
+    {{ formset.management_form }}
+    <div id="ingredient-list">
+      {% for subform in formset %}
+          <div class="form-row" data-form-index="{{ forloop.counter0 }}">
+            {{ subform.id }}
+            {% if subform.errors %}
+              <!-- Ошибки отдельных форм ингредиентов скрыты -->
+            {% endif %}
+            <div class="form-group">
+              <label>Ингредиент *</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="hidden" name="{{ subform.ingredient.html_name }}" value="{{ subform.ingredient.value|default:'' }}" class="ingredient-id-input">
+                <input type="text" class="ingredient-name-display" placeholder="Выберите ингредиент..." readonly style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+                <button type="button" class="btn btn-outline-primary btn-sm select-ingredient" style="padding: 8px 12px;">🔍 Выбрать</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Количество *</label>
+              {{ subform.amount }}
+            </div>
+            <div class="form-group">
+              <label>Единица измерения *</label>
+              {{ subform.unit }}
+            </div>
+            <button type="button" class="btn btn-danger btn-sm remove-ingredient" style="padding: 5px 10px; font-size: 12px;">🗑 Удалить</button>
+        </div>
+      {% endfor %}
+    </div>
+
+      <div style="text-align: center; margin: 15px 0;">
+        <button type="button" id="add-form" class="btn btn-success">➕ Добавить ингредиент</button>
+      </div>
+
+      <!-- Изображения -->
+      <h3 style="margin-top: 30px; color: #343a40;">📸 Изображения</h3>
+    {{ image_formset.management_form }}
+    <div id="image-list">
+      {% for imgform in image_formset %}
+          <div class="image-form-row" data-form-index="{{ forloop.counter0 }}">
+          {{ imgform.id }}
+            {% if imgform.errors %}
+              <!-- Ошибки отдельных форм изображений скрыты -->
+            {% endif %}
+            <div class="form-group">
+              <label>Изображение</label>
+          {{ imgform.image }}
+            </div>
+            <button type="button" class="btn btn-danger btn-sm remove-image" style="padding: 5px 10px; font-size: 12px; margin-top: 10px;">🗑 Удалить изображение</button>
+        </div>
+      {% endfor %}
+    </div>
+
+      <div style="text-align: center; margin: 15px 0;">
+        <button type="button" id="add-image-form" class="btn btn-success">➕ Добавить изображение</button>
+      </div>
+
+      <!-- Кнопки действий -->
+      <div class="form-buttons">
+        <button type="submit" class="btn btn-primary" onclick="cleanEmptyIngredientForms()">💾 Сохранить рецепт</button>
+        <a href="{% url 'recipe_list' %}" class="btn btn-secondary">❌ Отмена</a>
+      </div>
+  </form>
+  </div>
+
+  <!-- Шаблон пустого ингредиента -->
+  <template id="empty-form-template">
+    <div class="form-row" data-form-index="__prefix__">
+      <input type="hidden" name="ingredients-__prefix__-id">
+      <div class="form-group">
+        <label>Ингредиент *</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="hidden" name="ingredients-__prefix__-ingredient" class="ingredient-id-input">
+          <input type="text" class="ingredient-name-display" placeholder="Выберите ингредиент..." readonly style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;">
+          <button type="button" class="btn btn-outline-primary btn-sm select-ingredient" style="padding: 8px 12px;">🔍 Выбрать</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Количество *</label>
+        {{ formset.empty_form.amount }}
+      </div>
+      <div class="form-group">
+        <label>Единица измерения *</label>
+        {{ formset.empty_form.unit }}
+      </div>
+      <button type="button" class="btn btn-danger btn-sm remove-ingredient" style="padding: 5px 10px; font-size: 12px;">🗑 Удалить</button>
+    </div>
+  </template>
+
+  <!-- Шаблон пустого изображения -->
+  <template id="empty-image-template">
+    <div class="image-form-row" data-form-index="__prefix__">
+      <input type="hidden" name="images-__prefix__-id">
+      <div class="form-group">
+        <label>Изображение</label>
+        <input type="file" name="images-__prefix__-image" accept="image/*">
+      </div>
+      <button type="button" class="btn btn-danger btn-sm remove-image" style="padding: 5px 10px; font-size: 12px; margin-top: 10px;">🗑 Удалить изображение</button>
+    </div>
+  </template>
+
+  <!-- Fallback для выбора ингредиентов (если AJAX не работает) -->
+  {% include 'recipes/ingredient_fallback.html' %}
+  <div id="ingredientModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px; margin: 50px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <div style="margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #007bff; text-align: center;">🔍 Выбрать ингредиент</h3>
+        <div style="text-align: center; margin-top: 10px;">
+          <button type="button" onclick="switchToFallback()" 
+                  style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 12px;">
+            📋 Простой выбор
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Поиск ингредиента:</label>
+        <input type="text" id="ingredientSearch" placeholder="Введите название ингредиента..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+      </div>
+      
+      <div id="ingredientResults" style="max-height: 300px; overflow-y: auto; margin-top: 15px;">
+        <!-- Результаты поиска будут здесь -->
+      </div>
+      
+      <div id="createNewIngredient" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+        <h5 style="margin-bottom: 10px; color: #007bff;">➕ Создать новый ингредиент</h5>
+        <div class="form-group">
+          <label>Название ингредиента:</label>
+          <input type="text" id="newIngredientName" placeholder="Введите название нового ингредиента..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div style="text-align: center; margin-top: 10px;">
+          <button type="button" onclick="createNewIngredient()" class="btn btn-success btn-sm">Создать</button>
+          <button type="button" onclick="hideCreateNew()" class="btn btn-secondary btn-sm">Отмена</button>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 20px;">
+        <button type="button" onclick="showCreateNew()" class="btn btn-outline-primary btn-sm" style="margin-right: 10px;">➕ Создать новый</button>
+        <button type="button" onclick="closeIngredientModal()" class="btn btn-secondary">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Загружаем существующие ингредиенты при редактировании
+    {% if editing %}
+    loadExistingIngredients();
+    {% endif %}
+});
+
+function loadExistingIngredients() {
+    const ingredientInputs = document.querySelectorAll('.ingredient-id-input');
+    const ingredientDisplays = document.querySelectorAll('.ingredient-name-display');
+    
+    ingredientInputs.forEach((input, index) => {
+        const ingredientId = input.value;
+        const display = ingredientDisplays[index];
+        
+        if (ingredientId) {
+            // Загружаем название ингредиента через AJAX
+            fetch(`/recipes/api/ingredient-name/${ingredientId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.name) {
+                        display.value = data.name;
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки ингредиента:', error);
+                });
+        }
+    });
+}
+</script>
+{% endblock %}
+

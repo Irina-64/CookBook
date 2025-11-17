@@ -1,100 +1,178 @@
 {% extends "main/base.html" %}
-{% block title %}Главная — CookBook{% endblock %}
+
+{% block title %}Главная - Кулинарная книга{% endblock %}
+
+{% block page_title %}
+  <div class="text-center mb-5">
+    <h1 class="display-3 text-primary">Добро пожаловать!</h1>
+    <p class="lead">Делитесь любимыми рецептами и находите новые идеи</p>
+  </div>
+{% endblock %}
 
 {% block content %}
-  <section class="mb-4">
-    <div class="p-4 p-md-5 rounded bg-light">
-      <h1 class="display-6 mb-3">Найдите идеальный рецепт</h1>
-      <form class="row g-2" action="/search/" method="get">
-        <div class="col-12 col-md-6">
-          <input type="text" class="form-control form-control-lg" name="q" placeholder="Например: курица, паста, безглютеновое">
+
+  <!-- Фильтр рецептов -->
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h4 class="card-title mb-0">
+        <i class="fas fa-filter me-2"></i>Фильтр рецептов
+      </h4>
+    </div>
+    <div class="card-body">
+      <form id="filter-form">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="ingredient-filter" class="form-label">Ингредиент</label>
+            <input type="text" id="ingredient-filter" class="form-control" placeholder="Введите название ингредиента">
+          </div>
+          <div class="col-md-4">
+            <label for="difficulty-filter" class="form-label">Сложность</label>
+            <select id="difficulty-filter" class="form-select">
+              <option value="">Любая сложность</option>
+              <option value="easy">Легко</option>
+              <option value="medium">Средне</option>
+              <option value="hard">Сложно</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="category-filter" class="form-label">Категория</label>
+            <select id="category-filter" class="form-select">
+              <option value="">Все категории</option>
+              {% for cat in categories %}
+                <option value="{{ cat.slug }}">{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
-        <div class="col-6 col-md-3">
-          <select class="form-select form-select-lg" name="category">
-            <option value="">Все категории</option>
-            {% for c in categories %}
-              <option value="{{ c.slug }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-6 col-md-3 d-grid">
-          <button class="btn btn-primary btn-lg" type="submit">Искать</button>
+        <div class="row mt-3">
+          <div class="col-12 text-center">
+            <button type="button" id="apply-filter" class="btn btn-primary me-2">
+              <i class="fas fa-filter me-1"></i>Применить фильтр
+            </button>
+            <button type="button" id="clear-filter" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>Сбросить
+            </button>
+          </div>
         </div>
       </form>
     </div>
-  </section>
+  </div>
 
-  <section class="mb-3 d-flex justify-content-between align-items-center">
-    <h2 class="h4 m-0">Популярные рецепты</h2>
-    <a href="/recipes/" class="link-primary">Все рецепты →</a>
-  </section>
+  <!-- Свежие рецепты -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <h2 class="mb-4">
+        <i class="fas fa-fire me-2 text-danger"></i>Свежие рецепты
+      </h2>
+    </div>
+  </div>
+  
+  <!-- Добавить рецепт -->
+  <div class="text-center mb-4">
+    {% if user.is_authenticated %}
+      <a href="{% url 'recipe_add' %}" class="btn btn-success btn-lg">
+        <i class="fas fa-plus me-2"></i>Добавить рецепт
+      </a>
+    {% else %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <a href="{% url 'users:login' %}" class="alert-link">Войдите</a>, чтобы добавить рецепт
+      </div>
+    {% endif %}
+  </div>
 
-  <section class="row g-4">
+  <!-- Контейнер для рецептов -->
+  <div id="recipes-container">
+    {% if recipes %}
+      <div class="row">
     {% for recipe in recipes %}
-      <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card h-100">
-          {% if recipe.image %}
-            <img src="{{ recipe.image.url }}" class="card-img-top" alt="{{ recipe.title }}">
-          {% endif %}
-          <div class="card-body d-flex flex-column">
-            <h3 class="card-title h5"><a href="/recipes/{{ recipe.pk }}/" class="text-decoration-none">{{ recipe.title }}</a></h3>
-            <p class="card-text text-muted mb-2">{{ recipe.short_description|default:"" }}</p>
-            <div class="mt-auto">
-              <div class="small text-warning">
-                {% for i in "12345" %}
-                  {% if forloop.counter <= recipe.rating|default:0 %}
-                    ★
-                  {% else %}
-                    ☆
-                  {% endif %}
-                {% endfor %}
-                <span class="text-muted ms-2">{{ recipe.rating|default:"0.0" }}</span>
+          <div class="col-lg-6 col-md-6 mb-4">
+            <div class="card h-100" style="border-radius: 20px; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.08); background: white; height: 350px;">
+              <div class="card-header" style="background: linear-gradient(135deg, #6f42c1, #007bff); height: 6px; border-radius: 20px 20px 0 0; padding: 0;"></div>
+              
+              <div class="card-body d-flex flex-column" style="padding: 25px; height: 100%;">
+                <h5 class="card-title mb-3" style="font-size: 1.3rem; font-weight: 700; color: #2c3e50; line-height: 1.3;">
+                  <a href="{% url 'recipe_detail' recipe.pk %}" class="text-decoration-none text-dark">
+                    {{ recipe.title }}
+                  </a>
+                </h5>
+                
+                <!-- Детали рецепта -->
+                <div class="mb-3">
+                  <div class="row g-2 mb-2">
+                    <div class="col-4">
+                      <span class="badge" style="background: #f8f9fa; color: #495057; border-radius: 25px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fas fa-user me-1" style="color: #6c757d;"></i>Автор: {{ recipe.author.username }}
+                      </span>
+                    </div>
+                    {% if recipe.category %}
+                    <div class="col-4">
+                      <span class="badge" style="background: #f8f9fa; color: #495057; border-radius: 25px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fas fa-folder me-1" style="color: #6c757d;"></i>Категория: {{ recipe.category.name }}
+                      </span>
+                    </div>
+                    {% endif %}
+                    <div class="col-4">
+                      <span class="badge" style="background: #f8f9fa; color: #495057; border-radius: 25px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fas fa-bolt me-1" style="color: #6c757d;"></i>Сложность: {{ recipe.get_difficulty_display }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <span class="badge" style="background: #f8f9fa; color: #495057; border-radius: 25px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fas fa-star me-1" style="color: #ffc107;"></i>Рейтинг: {{ recipe.rating|floatformat:1 }}
+                      </span>
+                    </div>
+                    <div class="col-6">
+                      <span class="badge" style="background: #f8f9fa; color: #495057; border-radius: 25px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500;">
+                        <i class="fas fa-clock me-1" style="color: #6c757d;"></i>Время: {{ recipe.cook_time }} мин
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {% if recipe.description %}
+                  <p class="card-text text-muted flex-grow-1 mb-3" style="font-size: 0.9rem; line-height: 1.5; color: #6c757d;">
+                    {{ recipe.description|truncatewords:25 }}
+                  </p>
+                {% endif %}
+                
+                <div class="mt-auto">
+                  <div class="d-flex gap-2">
+                    <a href="{% url 'recipe_detail' recipe.pk %}" class="btn flex-fill" style="background: linear-gradient(135deg, #6f42c1, #5a32a3); border: none; border-radius: 25px; padding: 12px 20px; color: white; font-weight: 600; text-decoration: none; transition: all 0.3s ease;">
+                      <i class="fas fa-eye me-1"></i>Просмотр
+                    </a>
+                    {% if user.is_authenticated %}
+                      <button class="btn flex-fill" onclick="showCollectionModal({{ recipe.pk }})" style="background: linear-gradient(135deg, #28a745, #20c997); border: none; border-radius: 25px; padding: 12px 20px; color: white; font-weight: 600; transition: all 0.3s ease;">
+                        <i class="fas fa-plus me-1"></i>В коллекцию
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="card-footer bg-white border-0">
-            <div class="d-flex flex-wrap gap-1">
-              {% for cat in recipe.categories.all %}
-                <span class="badge text-bg-light">{{ cat.name }}</span>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-    {% empty %}
-      <div class="col-12">
-        <div class="alert alert-info">Пока нет рецептов.</div>
-      </div>
     {% endfor %}
-  </section>
+      </div>
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-utensils fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">Пока нет рецептов</h4>
+        <p class="text-muted">Станьте первым, кто добавит рецепт!</p>
+      </div>
+    {% endif %}
+  </div>
 
-  {% if is_paginated %}
-    <nav class="mt-4" aria-label="Навигация по страницам">
-      <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">Назад</span></li>
-        {% endif %}
-
-        {% for num in paginator.page_range %}
-          {% if num == page_obj.number %}
-            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-          {% else %}
-            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-          {% endif %}
-        {% endfor %}
-
-        {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперёд</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">Вперёд</span></li>
-        {% endif %}
-      </ul>
-    </nav>
+  <!-- Модальное окно для добавления в коллекцию -->
+  {% if user.is_authenticated %}
+    <div id="collectionModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <span class="close" onclick="hideCollectionModal()">&times;</span>
+        <h3>📚 Добавить в коллекцию</h3>
+        <div id="modalRecipeInfo"></div>
+        <div id="modalCollections"></div>
+      </div>
+    </div>
   {% endif %}
 {% endblock %}

@@ -1,0 +1,64 @@
+{% extends "main/base.html" %}
+
+{% block page_title %}
+  <h1 style="color: #6f42c1; text-align: center; margin-bottom: 20px;">Коллекции</h1>
+  <hr style="border: 1px solid #007bff; margin-bottom: 30px;">
+{% endblock %}
+
+{% block content %}
+
+
+<!-- Мои коллекции -->
+<h2 style="color: #343a40; margin-bottom: 15px;">Мои коллекции</h2>
+<p style="margin-bottom: 20px;">
+  <a href="{% url 'collection_add' %}" style="color: #007bff; text-decoration: none;">➕ Создать коллекцию</a>
+</p>
+
+<ul style="list-style: none; padding: 0; margin-bottom: 30px;">
+  {% for collection in my_collections %}
+    <li style="margin-bottom: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #007bff;">
+      <a href="{% url 'collection_detail' collection.pk %}" style="color: #007bff; text-decoration: none; font-weight: bold;">
+        <strong>{{ forloop.counter }}</strong> — {{ collection.title }}
+        ({{ collection.items.count }} 
+        {% if collection.items.count == 1 %}рецепт
+        {% elif collection.items.count >= 2 and collection.items.count <= 4 %}рецепта
+        {% else %}рецептов
+        {% endif %})
+      </a>
+      — 
+      <a href="{% url 'collection_edit' collection.pk %}" style="color: #007bff; text-decoration: none;">📝 Изменить</a> 
+      | 
+      <a href="{% url 'collection_delete' collection.pk %}" style="color: #dc3545; text-decoration: none;">Удалить</a>
+    </li>
+  {% empty %}
+    <li style="padding: 20px; text-align: center; color: #6c757d; background: #f8f9fa; border-radius: 4px;">
+      У вас пока нет коллекций.
+    </li>
+  {% endfor %}
+</ul>
+
+<hr style="border: 1px solid #dee2e6; margin: 30px 0;">
+
+<!-- Публичные коллекции пользователей -->
+<h2 style="color: #343a40; margin-bottom: 20px;">Публичные коллекции пользователей</h2>
+<ul style="list-style: none; padding: 0;">
+  {% for collection in public_collections %}
+    <li style="margin-bottom: 10px; padding: 15px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #28a745;">
+      <a href="{% url 'collection_detail' collection.pk %}" style="color: #007bff; text-decoration: none; font-weight: bold;">
+        <strong>{{ forloop.counter }}</strong> — {{ collection.title }}
+        (автор: {{ collection.owner.get_full_name|default:collection.owner.username }}, 
+        {{ collection.items.count }} 
+        {% if collection.items.count == 1 %}рецепт
+        {% elif collection.items.count >= 2 and collection.items.count <= 4 %}рецепта
+        {% else %}рецептов
+        {% endif %})
+      </a>
+    </li>
+  {% empty %}
+    <li style="padding: 20px; text-align: center; color: #6c757d; background: #f8f9fa; border-radius: 4px;">
+      Пока нет публичных коллекций.
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}
+
